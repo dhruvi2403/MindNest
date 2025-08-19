@@ -1,0 +1,213 @@
+import React from "react"
+import DynamicAssessmentPage from "./DynamicAssessmentPage"
+
+const questions = [
+  // Demographics (matching dataset fields)
+  {
+    id: "age",
+    text: "What is your age?",
+    category: "demographics",
+    type: "number",
+    min: 18,
+    max: 100,
+  },
+  {
+    id: "gender",
+    text: "What is your gender?",
+    category: "demographics",
+    type: "select",
+    options: [
+      { value: "Male", label: "Male" },
+      { value: "Female", label: "Female" },
+      { value: "Non-binary", label: "Non-binary" },
+      { value: "Other", label: "Other" },
+      { value: "Prefer not to say", label: "Prefer not to say" },
+    ],
+  },
+  {
+    id: "occupation",
+    text: "What is your occupation field?",
+    category: "demographics",
+    type: "select",
+    options: [
+      { value: "Healthcare", label: "Healthcare" },
+      { value: "Technology", label: "Technology" },
+      { value: "Education", label: "Education" },
+      { value: "Finance", label: "Finance" },
+      { value: "Business", label: "Business" },
+      { value: "Arts", label: "Arts & Creative" },
+      { value: "Engineering", label: "Engineering" },
+      { value: "Student", label: "Student" },
+      { value: "Unemployed", label: "Unemployed" },
+      { value: "Retired", label: "Retired" },
+      { value: "Other", label: "Other" },
+    ],
+  },
+  {
+    id: "country",
+    text: "Which country are you from?",
+    category: "demographics",
+    type: "select",
+    options: [
+      { value: "United States", label: "United States" },
+      { value: "Canada", label: "Canada" },
+      { value: "United Kingdom", label: "United Kingdom" },
+      { value: "Australia", label: "Australia" },
+      { value: "Germany", label: "Germany" },
+      { value: "France", label: "France" },
+      { value: "India", label: "India" },
+      { value: "Japan", label: "Japan" },
+      { value: "Brazil", label: "Brazil" },
+      { value: "Other", label: "Other" },
+    ],
+  },
+  // Mental Health Status
+  {
+    id: "mental_health_condition",
+    text: "Do you currently have a diagnosed mental health condition?",
+    category: "mental_health",
+    type: "radio",
+    options: [
+      { value: "Yes", label: "Yes" },
+      { value: "No", label: "No" },
+      { value: "Unsure", label: "Unsure" },
+    ],
+  },
+  {
+    id: "consultation_history",
+    text: "Have you ever consulted with a mental health professional?",
+    category: "mental_health",
+    type: "radio",
+    options: [
+      { value: "Yes", label: "Yes" },
+      { value: "No", label: "No" },
+    ],
+  },
+  {
+    id: "medication_usage",
+    text: "Are you currently taking any mental health medication?",
+    category: "mental_health",
+    type: "radio",
+    options: [
+      { value: "Yes", label: "Yes" },
+      { value: "No", label: "No" },
+    ],
+  },
+  // Clinical Scales (1-10)
+  {
+    id: "stress_level",
+    text: "How would you rate your current stress level?",
+    category: "clinical",
+    type: "select",
+    options: [
+      { value: "Low", label: "Low" },
+      { value: "Medium", label: "Medium" },
+      { value: "High", label: "High" },
+    ],
+  },
+  {
+    id: "symptom_severity",
+    text: "If you experience mental health symptoms, how severe are they? (1 = Very Mild, 10 = Very Severe)",
+    category: "clinical",
+    type: "range",
+    min: 1,
+    max: 10,
+    step: 1,
+  },
+  {
+    id: "mood_score",
+    text: "How would you rate your overall mood today? (1 = Very Poor, 10 = Excellent)",
+    category: "clinical",
+    type: "range",
+    min: 1,
+    max: 10,
+    step: 1,
+  },
+  {
+    id: "sleep_quality",
+    text: "How would you rate your sleep quality? (1 = Very Poor, 10 = Excellent)",
+    category: "clinical",
+    type: "range",
+    min: 1,
+    max: 10,
+    step: 1,
+  },
+  // Lifestyle Factors
+  {
+    id: "sleep_hours",
+    text: "How many hours of sleep do you get per night on average?",
+    category: "lifestyle",
+    type: "number",
+    min: 0,
+    max: 24,
+    step: 0.5,
+  },
+  {
+    id: "work_hours",
+    text: "How many hours do you work per week?",
+    category: "lifestyle",
+    type: "number",
+    min: 0,
+    max: 80,
+  },
+  {
+    id: "physical_activity_hours",
+    text: "How many hours of physical activity do you get per week?",
+    category: "lifestyle",
+    type: "number",
+    min: 0,
+    max: 50,
+    step: 0.5,
+  },
+  {
+    id: "social_media_usage",
+    text: "How many hours do you spend on social media per day?",
+    category: "lifestyle",
+    type: "number",
+    min: 0,
+    max: 24,
+    step: 0.5,
+  },
+  {
+    id: "diet_quality",
+    text: "How would you rate your diet quality?",
+    category: "lifestyle",
+    type: "select",
+    options: [
+      { value: "Excellent", label: "Excellent" },
+      { value: "Good", label: "Good" },
+      { value: "Average", label: "Average" },
+      { value: "Poor", label: "Poor" },
+      { value: "Very Poor", label: "Very Poor" },
+    ],
+  },
+  {
+    id: "smoking_habit",
+    text: "What best describes your smoking habits?",
+    category: "lifestyle",
+    type: "select",
+    options: [
+      { value: "Non-Smoker", label: "Non-Smoker" },
+      { value: "Occasional Smoker", label: "Occasional Smoker" },
+      { value: "Regular Smoker", label: "Regular Smoker" },
+      { value: "Heavy Smoker", label: "Heavy Smoker" },
+      { value: "Former Smoker", label: "Former Smoker" },
+    ],
+  },
+  {
+    id: "alcohol_consumption",
+    text: "What best describes your alcohol consumption?",
+    category: "lifestyle",
+    type: "select",
+    options: [
+      { value: "Non-Drinker", label: "Non-Drinker" },
+      { value: "Light Drinker", label: "Light Drinker" },
+      { value: "Moderate Drinker", label: "Moderate Drinker" },
+      { value: "Heavy Drinker", label: "Heavy Drinker" },
+    ],
+  },
+]
+
+export default function AssessmentPage() {
+  return <DynamicAssessmentPage />
+}
