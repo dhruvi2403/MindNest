@@ -1,6 +1,8 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LandingPage from '../components/pages/LandingPage.jsx';
+import AboutPage from '../components/pages/AboutPage.jsx';
+import ContactPage from '../components/pages/ContactPage.jsx';
 import LoginPage from '../components/pages/LoginPage.jsx';
 import SignupPage from '../components/pages/SignupPage.jsx';
 import Dashboard from '../components/pages/Dashboard.jsx';
@@ -13,6 +15,7 @@ import { ChatbotProvider } from '../components/chatbot/ChatbotProvider.jsx';
 import ChatbotWrapper from '../components/chatbot/ChatbotWrapper.jsx';
 // import { Toaster } from '../components/ui/toaster.jsx';
 import Navbar from '../components/layout/Navbar.jsx';
+import TherapistNavbar from '../components/layout/TherapistNavbar.jsx';
 
 
 
@@ -54,10 +57,14 @@ function PublicRoute({ children }) {
 }
 
 function AppRoutes() {
+  const { user } = useAuth();
+  
   return (
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/contact" element={<ContactPage />} />
       <Route
         path="/login"
         element={
@@ -128,25 +135,12 @@ function AppRoutes() {
 }
 
 export default function App() {
-  // return (
-  //   <div className="min-h-screen bg-background">
-  //     <AuthProvider>
-  //       <ChatbotProvider>
-  //         <Router>
-  //           <AppRoutes />
-  //           <ChatbotWrapper />
-  //         </Router>
-  //       </ChatbotProvider>
-  //     </AuthProvider>
-  //     {/* <Toaster /> */}
-  //   </div>
-  // );
   return (
     <AuthProvider>
       <ChatbotProvider>
         <Router>
           <div className="min-h-screen bg-background">
-            <Navbar />   {/* Now Navbar is safely inside AuthProvider */}
+            <ConditionalNavbar />
             <AppRoutes />
             <ChatbotWrapper />
           </div>
@@ -155,4 +149,29 @@ export default function App() {
       </ChatbotProvider>
     </AuthProvider>
   );
+}
+
+// Component to conditionally render the appropriate navbar
+function ConditionalNavbar() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const isPublicPage = ['/', '/about', '/contact'].includes(location.pathname);
+  
+  // Always show public navbar on public pages
+  if (isPublicPage) {
+    return <Navbar />;
+  }
+  
+  // Show therapist navbar for therapist users
+  if (user && user.role === 'therapist') {
+    return <TherapistNavbar />;
+  }
+  
+  // Show regular navbar for logged-in users
+  if (user) {
+    return <Navbar />;
+  }
+  
+  // Show regular navbar for login/signup pages
+  return <Navbar />;
 }

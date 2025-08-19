@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -166,7 +164,8 @@ export default function ProfilePage() {
   }
 
   const getWellnessScore = () => {
-    if (assessments.length === 0) return 75
+    // if (assessments.length === 0) return 75
+    if (!assessments || assessments.length === 0) return 75
 
     const latestAssessment = assessments[0]
     const severityScores = { Low: 90, Mild: 70, Moderate: 50, High: 30 }
@@ -174,7 +173,8 @@ export default function ProfilePage() {
   }
 
   const getProgressTrend = () => {
-    if (assessments.length < 2) return 0
+    // if (assessments.length < 2) return 0
+    if (!assessments || assessments.length < 2) return 0
 
     const latest = assessments[0]
     const previous = assessments[1]
@@ -232,7 +232,8 @@ export default function ProfilePage() {
                   <div className="text-center pt-4 border-t">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <div className="font-semibold text-lg">{assessments.length}</div>
+                        {/* <div className="font-semibold text-lg">{assessments.length}</div> */}
+                        <div className="font-semibold text-lg">{assessments ? assessments.length : 0}</div>
                         <div className="text-muted-foreground">Assessments</div>
                       </div>
                       <div>
@@ -271,7 +272,8 @@ export default function ProfilePage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {assessments.length > 0 ? (
+                      {/* {assessments.length > 0 ? ( */}
+                      {assessments && assessments.length > 0 ? (
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <Badge className={getSeverityColor(assessments[0].result.severity)}>
@@ -317,7 +319,8 @@ export default function ProfilePage() {
                     <CardDescription>Based on your latest assessment</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {assessments.length > 0 ? (
+                    {/* {assessments.length > 0 ? ( */}
+                    {assessments && assessments.length > 0 ? (
                       <div className="space-y-3">
                         {assessments[0].result.recommendations.slice(0, 3).map((recommendation, index) => (
                           <div key={index} className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
@@ -347,7 +350,8 @@ export default function ProfilePage() {
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                       </div>
-                    ) : assessments.length > 0 ? (
+                    // ) : assessments.length > 0 ? (
+                    ) : assessments && assessments.length > 0 ? (
                       <div className="space-y-4">
                         {assessments.map((assessment) => (
                           <Card key={assessment.id} className="border-l-4 border-l-primary">

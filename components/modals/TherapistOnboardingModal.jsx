@@ -6,10 +6,11 @@ import { Textarea } from "../ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Checkbox } from "../ui/checkbox"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import { useToast } from "../../src/hooks/use-toast"
-import { X, Stethoscope, GraduationCap, MapPin, Clock } from "lucide-react"
+import { Stethoscope, GraduationCap, MapPin, Clock } from "lucide-react"
 
-export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }) {
+export default function TherapistOnboardingModal({ isOpen, onComplete }) {
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -102,7 +103,7 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
   }
 
   const handlePrevious = () => {
-    setCurrentStep(prev => prev - 1)
+    setCurrentStep(prev => Math.max(1, prev - 1))
   }
 
   const handleSubmit = async () => {
@@ -116,8 +117,10 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
     }
 
     setLoading(true)
+
     try {
-      const response = await fetch("http://localhost:5000/api/therapists", {
+      // Submit therapist profile data
+      const response = await fetch("/api/therapists", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -126,20 +129,21 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
         body: JSON.stringify(formData),
       })
 
-      if (response.ok) {
-        toast({
-          title: "Profile submitted successfully!",
-          description: "Your profile is under review. You'll be notified once it's approved.",
-        })
-        onComplete()
-      } else {
-        const error = await response.json()
-        throw new Error(error.error || "Failed to submit profile")
+      if (!response.ok) {
+        throw new Error("Failed to create therapist profile")
       }
-    } catch (error) {
+
       toast({
-        title: "Submission failed",
-        description: error.message || "Please try again later.",
+        title: "Profile Created Successfully!",
+        description: "Your therapist profile has been created and is now active.",
+      })
+
+      onComplete()
+    } catch (error) {
+      console.error("Error creating therapist profile:", error)
+      toast({
+        title: "Profile Creation Failed",
+        description: "Please try again or contact support.",
         variant: "destructive",
       })
     } finally {
@@ -150,40 +154,38 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <div className="flex items-center space-x-3">
-            <Stethoscope className="h-6 w-6 text-primary" />
-            <div>
-              <h2 className="text-xl font-semibold">Complete Your Therapist Profile</h2>
-              <p className="text-sm text-gray-600">Step {currentStep} of 3</p>
-            </div>
+    <Dialog open={isOpen} onOpenChange={() => {}}>
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="flex items-center space-x-3 p-6 border-b">
+          <Stethoscope className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-xl font-semibold">Complete Your Therapist Profile</h2>
+            <p className="text-sm text-gray-600">Step {currentStep} of 3</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        </DialogHeader>
 
         {/* Progress Bar */}
         <div className="px-6 py-4">
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(currentStep / 3) * 100}%` }}
-            />
+          <div className="flex space-x-2 mb-4">
+            {[1, 2, 3].map((step) => (
+              <div
+                key={step}
+                className={`flex-1 h-2 rounded-full ${
+                  step <= currentStep ? "bg-primary" : "bg-gray-200"
+                }`}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
+        {/* Form Content */}
+        <div className="px-6 pb-6">
           {currentStep === 1 && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-medium mb-4">Professional Information</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Tell us about your expertise and background to help clients find the right therapist.
+                  Tell us about your professional background and expertise.
                 </p>
               </div>
 
@@ -192,8 +194,8 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
                   <Label className="text-sm font-medium">
                     Specializations * <span className="text-red-500">*</span>
                   </Label>
-                  <p className="text-xs text-gray-500 mb-2">Select all that apply</p>
-                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-3">
+                  <p className="text-xs text-gray-500 mb-2">Select all that apply to your practice</p>
+                  <div className="grid grid-cols-2 gap-3">
                     {specializations.map((spec) => (
                       <div key={spec} className="flex items-center space-x-2">
                         <Checkbox
@@ -213,15 +215,13 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
                   <Label htmlFor="bio" className="text-sm font-medium">
                     Professional Bio * <span className="text-red-500">*</span>
                   </Label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    Describe your approach, experience, and how you help clients
-                  </p>
+                  <p className="text-xs text-gray-500 mb-2">Describe your approach and experience</p>
                   <Textarea
                     id="bio"
-                    placeholder="I am a licensed therapist with expertise in..."
+                    placeholder="Tell us about your therapeutic approach, experience, and how you help clients..."
                     value={formData.bio}
                     onChange={(e) => handleInputChange("bio", e.target.value)}
-                    className="min-h-[100px]"
+                    rows={4}
                   />
                 </div>
               </div>
@@ -233,7 +233,7 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
               <div>
                 <h3 className="text-lg font-medium mb-4">Location & Availability</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Help clients understand where you practice and when you're available.
+                  Set your practice location and available days.
                 </p>
               </div>
 
@@ -242,10 +242,10 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
                   <Label htmlFor="location" className="text-sm font-medium">
                     Practice Location * <span className="text-red-500">*</span>
                   </Label>
-                  <p className="text-xs text-gray-500 mb-2">City, State or Remote</p>
+                  <p className="text-xs text-gray-500 mb-2">City, State or Country where you practice</p>
                   <Input
                     id="location"
-                    placeholder="e.g., New York, NY or Remote"
+                    placeholder="e.g., New York, NY or London, UK"
                     value={formData.location}
                     onChange={(e) => handleInputChange("location", e.target.value)}
                   />
@@ -256,7 +256,7 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
                     Available Days * <span className="text-red-500">*</span>
                   </Label>
                   <p className="text-xs text-gray-500 mb-2">Select the days you're available for sessions</p>
-                  <div className="grid grid-cols-2 gap-2 border rounded-md p-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {availabilityOptions.map((day) => (
                       <div key={day} className="flex items-center space-x-2">
                         <Checkbox
@@ -359,7 +359,7 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

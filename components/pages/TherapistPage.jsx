@@ -13,8 +13,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import Navbar from "@/components/layout/Navbar"
 import { Search, MapPin, Star, Calendar, Clock, Filter, Users, Award, MessageCircle } from "lucide-react"
+import AppointmentBookingModal from "../modals/AppointmentBookingModal"
 
 export default function TherapistPage() {
   const [therapists, setTherapists] = useState([])
@@ -25,6 +25,8 @@ export default function TherapistPage() {
   const [selectedLocation, setSelectedLocation] = useState("all")
   const [sortBy, setSortBy] = useState("rating")
   const [selectedTherapist, setSelectedTherapist] = useState(null)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [bookingTherapist, setBookingTherapist] = useState(null)
   const { toast } = useToast()
 
   const specializations = [
@@ -58,151 +60,122 @@ export default function TherapistPage() {
         },
       })
 
-      if (!response.ok) {
+      if (response.ok) {
+        const data = await response.json()
+        // Normalize therapist data from API
+        const normalizedTherapists = data.therapists ? data.therapists.map(normalizeTherapist) : []
+        setTherapists(normalizedTherapists)
+      } else {
         throw new Error("Failed to fetch therapists")
       }
-
-      const data = await response.json()
-      // ///////////////////////////
-      const normalizeTherapist = (t) => ({
-        id: t.id ?? t._id ?? crypto.randomUUID(),
-        name: t.name ?? "Unknown Therapist",
-        bio: t.bio ?? "",
-        location: t.location ?? "—",
-        rating: Number.isFinite(+t.rating) ? +t.rating : 0,
-        experience: Number.isFinite(+t.experience) ? +t.experience : 0,
-        profileImage: t.profileImage ?? "/placeholder.svg",
-        verified: Boolean(t.verified),
-      
-        // Ensure arrays
-        specialization: Array.isArray(t.specialization)
-          ? t.specialization
-          : typeof t.specializations === "string"
-            ? t.specializations.split(",").map(s => s.trim()).filter(Boolean)
-            : Array.isArray(t.specializations)
-              ? t.specializations
-              : [],
-      
-        availability: Array.isArray(t.availability) ? t.availability : [],
-      })
-      
-      const apiTherapists = Array.isArray(data?.therapists) ? data.therapists : []
-      setTherapists(apiTherapists.map(normalizeTherapist))
-      // setTherapists(data.therapists)
     } catch (error) {
-      // Mock data for demo
-      const mockTherapists = [
-        {
-          id: "1",
-          name: "Dr. Sarah Wilson",
-          specialization: ["Anxiety", "Depression", "Cognitive Behavioral Therapy"],
-          bio: "Licensed clinical psychologist with 8 years of experience specializing in anxiety and mood disorders. I use evidence-based approaches including CBT and mindfulness techniques.",
-          experience: 8,
-          rating: 4.9,
-          location: "New York, NY",
-          availability: ["Monday", "Wednesday", "Friday"],
-          profileImage: "/professional-therapist-woman.png",
-          verified: true,
-        },
-        {
-          id: "2",
-          name: "Dr. Michael Chen",
-          specialization: ["Stress Management", "Trauma", "EMDR"],
-          bio: "Trauma specialist with expertise in EMDR therapy and stress management techniques. Helping clients heal from traumatic experiences and build resilience.",
-          experience: 12,
-          rating: 4.8,
-          location: "Los Angeles, CA",
-          availability: ["Tuesday", "Thursday", "Saturday"],
-          profileImage: "/professional-therapist-man.png",
-          verified: true,
-        },
-        {
-          id: "3",
-          name: "Dr. Emily Rodriguez",
-          specialization: ["Family Therapy", "Relationship Counseling", "Depression"],
-          bio: "Family and couples therapist helping individuals and families build stronger relationships and overcome communication challenges.",
-          experience: 6,
-          rating: 4.7,
-          location: "Chicago, IL",
-          availability: ["Monday", "Tuesday", "Thursday"],
-          profileImage: "/hispanic-therapist.png",
-          verified: true,
-        },
-        {
-          id: "4",
-          name: "Dr. James Thompson",
-          specialization: ["Addiction", "Behavioral Therapy", "Group Therapy"],
-          bio: "Addiction specialist with extensive experience in behavioral therapy and group counseling. Supporting clients in recovery and building healthy coping mechanisms.",
-          experience: 15,
-          rating: 4.9,
-          location: "Austin, TX",
-          availability: ["Wednesday", "Friday", "Saturday"],
-          profileImage: "/older-male-therapist.png",
-          verified: true,
-        },
-        {
-          id: "5",
-          name: "Dr. Lisa Park",
-          specialization: ["Mindfulness", "Meditation", "Stress Reduction"],
-          bio: "Mindfulness-based therapist integrating meditation and stress reduction techniques. Helping clients find inner peace and emotional balance.",
-          experience: 10,
-          rating: 4.8,
-          location: "Seattle, WA",
-          availability: ["Monday", "Wednesday", "Friday", "Sunday"],
-          profileImage: "/asian-woman-therapist.png",
-          verified: true,
-        },
-        {
-          id: "6",
-          name: "Dr. Robert Martinez",
-          specialization: ["PTSD", "Veterans Counseling", "Crisis Intervention"],
-          bio: "Specialized in working with veterans and first responders dealing with PTSD and trauma. Providing compassionate care for those who serve.",
-          experience: 14,
-          rating: 4.9,
-          location: "Denver, CO",
-          availability: ["Tuesday", "Thursday", "Saturday"],
-          profileImage: "/latino-therapist.png",
-          verified: true,
-        },
-      ]
-      setTherapists(mockTherapists)
+      console.error("Error fetching therapists:", error)
+      // Fallback to static data if API fails
+      setTherapists(getStaticTherapists())
+      toast({
+        title: "Using Demo Data",
+        description: "Showing sample therapists while we connect to the database.",
+        variant: "default",
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  // const filterAndSortTherapists = () => {
-  //   const filtered = therapists.filter((therapist) => {
-  //     const matchesSearch =
-  //       therapist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //       therapist.specialization.some((spec) => spec.toLowerCase().includes(searchTerm.toLowerCase())) ||
-  //       therapist.bio.toLowerCase().includes(searchTerm.toLowerCase())
+  const normalizeTherapist = (t) => ({
+    id: t.id ?? t._id ?? crypto.randomUUID(),
+    name: t.name ?? "Unknown Therapist",
+    bio: t.bio ?? "",
+    location: t.location ?? "—",
+    rating: Number.isFinite(+t.rating) ? +t.rating : 4.5,
+    experience: Number.isFinite(+t.experience) ? +t.experience : 5,
+    profileImage: t.profileImage ?? "/placeholder.svg",
+    verified: Boolean(t.verified),
+    specialization: Array.isArray(t.specialization)
+      ? t.specialization
+      : typeof t.specializations === "string"
+        ? t.specializations.split(",").map(s => s.trim()).filter(Boolean)
+        : Array.isArray(t.specializations)
+          ? t.specializations
+          : ["General Therapy"],
+    availability: Array.isArray(t.availability) ? t.availability : ["Monday", "Wednesday", "Friday"],
+  })
 
-  //     const matchesSpecialization =
-  //       selectedSpecialization === "all" ||
-  //       therapist.specialization.some((spec) => spec.toLowerCase().includes(selectedSpecialization.toLowerCase()))
+  const getStaticTherapists = () => [
+    {
+      id: "1",
+      name: "Dr. Sarah Wilson",
+      specialization: ["Anxiety", "Depression", "Cognitive Behavioral Therapy"],
+      bio: "Licensed clinical psychologist with 8 years of experience specializing in anxiety and mood disorders. I use evidence-based approaches including CBT and mindfulness techniques.",
+      experience: 8,
+      rating: 4.9,
+      location: "New York, NY",
+      availability: ["Monday", "Wednesday", "Friday"],
+      profileImage: "/professional-therapist-woman.png",
+      verified: true,
+    },
+    {
+      id: "2",
+      name: "Dr. Michael Chen",
+      specialization: ["Stress Management", "Trauma", "EMDR"],
+      bio: "Trauma specialist with expertise in EMDR therapy and stress management techniques. Helping clients heal from traumatic experiences and build resilience.",
+      experience: 12,
+      rating: 4.8,
+      location: "Los Angeles, CA",
+      availability: ["Tuesday", "Thursday", "Saturday"],
+      profileImage: "/professional-therapist-man.png",
+      verified: true,
+    },
+    {
+      id: "3",
+      name: "Dr. Emily Rodriguez",
+      specialization: ["Family Therapy", "Relationship Counseling", "Depression"],
+      bio: "Family and couples therapist helping individuals and families build stronger relationships and overcome communication challenges.",
+      experience: 6,
+      rating: 4.7,
+      location: "Chicago, IL",
+      availability: ["Monday", "Tuesday", "Thursday"],
+      profileImage: "/hispanic-therapist.png",
+      verified: true,
+    },
+    {
+      id: "4",
+      name: "Dr. James Thompson",
+      specialization: ["Addiction", "Behavioral Therapy", "Group Therapy"],
+      bio: "Addiction specialist with extensive experience in behavioral therapy and group counseling. Supporting clients in recovery and building healthy coping mechanisms.",
+      experience: 15,
+      rating: 4.9,
+      location: "Austin, TX",
+      availability: ["Wednesday", "Friday", "Saturday"],
+      profileImage: "/older-male-therapist.png",
+      verified: true,
+    },
+    {
+      id: "5",
+      name: "Dr. Lisa Park",
+      specialization: ["Mindfulness", "Meditation", "Stress Reduction"],
+      bio: "Mindfulness-based therapist integrating meditation and stress reduction techniques. Helping clients find inner peace and emotional balance.",
+      experience: 10,
+      rating: 4.8,
+      location: "Seattle, WA",
+      availability: ["Monday", "Wednesday", "Friday", "Sunday"],
+      profileImage: "/asian-woman-therapist.png",
+      verified: true,
+    },
+    {
+      id: "6",
+      name: "Dr. Robert Martinez",
+      specialization: ["PTSD", "Veterans Counseling", "Crisis Intervention"],
+      bio: "Specialized in working with veterans and first responders dealing with PTSD and trauma. Providing compassionate care for those who serve.",
+      experience: 14,
+      rating: 4.9,
+      location: "Denver, CO",
+      availability: ["Tuesday", "Thursday", "Saturday"],
+      profileImage: "/latino-therapist.png",
+      verified: true,
+    },
+  ]
 
-  //     const matchesLocation = selectedLocation === "all" || therapist.location === selectedLocation
-
-  //     return matchesSearch && matchesSpecialization && matchesLocation
-  //   })
-
-  //   // Sort therapists
-  //   filtered.sort((a, b) => {
-  //     switch (sortBy) {
-  //       case "rating":
-  //         return b.rating - a.rating
-  //       case "experience":
-  //         return b.experience - a.experience
-  //       case "name":
-  //         return a.name.localeCompare(b.name)
-  //       default:
-  //         return 0
-  //     }
-  //   })
-
-  //   setFilteredTherapists(filtered)
-  // }
   const filterAndSortTherapists = () => {
     const q = (searchTerm || "").toLowerCase()
   
@@ -244,12 +217,18 @@ export default function TherapistPage() {
   
     setFilteredTherapists(filtered)
   }
-  
 
   const handleBookAppointment = (therapist) => {
+    setBookingTherapist(therapist)
+    setShowBookingModal(true)
+  }
+
+  const handleBookingComplete = (appointment) => {
+    // Refresh therapists data to show updated availability
+    fetchTherapists()
     toast({
-      title: "Booking Request Sent",
-      description: `Your appointment request with ${therapist.name} has been sent. They will contact you within 24 hours.`,
+      title: "Appointment Booked Successfully!",
+      description: `Your appointment has been scheduled. You can view it in your dashboard.`,
     })
   }
 
@@ -263,7 +242,6 @@ export default function TherapistPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
@@ -273,8 +251,6 @@ export default function TherapistPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* <Navbar /> */}
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -529,6 +505,16 @@ export default function TherapistPage() {
               Clear Filters
             </Button>
           </div>
+        )}
+
+        {/* Appointment Booking Modal */}
+        {showBookingModal && bookingTherapist && (
+          <AppointmentBookingModal
+            isOpen={showBookingModal}
+            therapist={bookingTherapist}
+            onClose={() => setShowBookingModal(false)}
+            onBookingComplete={handleBookingComplete}
+          />
         )}
       </div>
     </div>

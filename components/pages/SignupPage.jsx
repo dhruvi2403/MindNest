@@ -1,7 +1,5 @@
-"use client"
-
-import React, { useState } from "react"
-import { Link } from "react-router-dom"
+import React, { useState, useEffect } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
 import { Brain, Eye, EyeOff, User, Stethoscope } from "lucide-react"
+import TherapistOnboardingModal from "../modals/TherapistOnboardingModal"
 
 export default function SignupPage() {
   const [name, setName] = useState("")
@@ -22,8 +21,10 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [agreeToTerms, setAgreeToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const { signup } = useAuth()
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -54,10 +55,19 @@ export default function SignupPage() {
         title: "Welcome to MindNest!",
         description: `Your ${role} account has been created successfully.`,
       })
+      
+      // If therapist, show onboarding modal immediately
+      if (role === "therapist") {
+        setShowOnboarding(true)
+      } else {
+        // If client, redirect to dashboard
+        navigate("/dashboard")
+      }
     } catch (error) {
+      console.error("Signup error:", error)
       toast({
         title: "Signup failed",
-        description: "Please try again or contact support.",
+        description: error.message || "Please try again or contact support.",
         variant: "destructive",
       })
     } finally {
@@ -221,6 +231,17 @@ export default function SignupPage() {
           </Link>
         </div>
       </div>
+
+      {/* Therapist Onboarding Modal */}
+      {showOnboarding && (
+        <TherapistOnboardingModal
+          isOpen={showOnboarding}
+          onComplete={() => {
+            setShowOnboarding(false)
+            navigate("/therapist-dashboard")
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -209,5 +209,5 @@ const questions = [
 ]
 
 export default function AssessmentPage() {
-  return <DynamicAssessmentPage />
+  return <DynamicAssessmentPage questions={questions} />
 }

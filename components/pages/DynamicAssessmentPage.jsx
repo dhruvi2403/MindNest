@@ -13,10 +13,7 @@ import { Progress } from "../ui/progress";
 import { useToast } from "../../src/hooks/use-toast"
 import { Badge } from "../ui/badge";
 
-// If you have an AssessmentResults component, import it
-// import AssessmentResults from "../components/assessment/AssessmentResults";
-
-export default function DynamicAssessmentPage() {
+export default function DynamicAssessmentPage({ questions: propQuestions = [] }) {
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});

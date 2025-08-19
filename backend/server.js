@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
 import assessmentRoutes from './routes/assessment.js';
 import therapistRoutes from './routes/therapists.js';
+import clientRoutes from './routes/clients.js';
 import chatbotRoutes from './routes/chatbot.js';
 import appointmentRoutes from './routes/appointments.js';
 
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/api/therapists', therapistRoutes);
+app.use('/api/clients', clientRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/appointments', appointmentRoutes);
 
