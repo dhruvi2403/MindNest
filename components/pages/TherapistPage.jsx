@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -65,7 +63,32 @@ export default function TherapistPage() {
       }
 
       const data = await response.json()
-      setTherapists(data.therapists)
+      // ///////////////////////////
+      const normalizeTherapist = (t) => ({
+        id: t.id ?? t._id ?? crypto.randomUUID(),
+        name: t.name ?? "Unknown Therapist",
+        bio: t.bio ?? "",
+        location: t.location ?? "—",
+        rating: Number.isFinite(+t.rating) ? +t.rating : 0,
+        experience: Number.isFinite(+t.experience) ? +t.experience : 0,
+        profileImage: t.profileImage ?? "/placeholder.svg",
+        verified: Boolean(t.verified),
+      
+        // Ensure arrays
+        specialization: Array.isArray(t.specialization)
+          ? t.specialization
+          : typeof t.specializations === "string"
+            ? t.specializations.split(",").map(s => s.trim()).filter(Boolean)
+            : Array.isArray(t.specializations)
+              ? t.specializations
+              : [],
+      
+        availability: Array.isArray(t.availability) ? t.availability : [],
+      })
+      
+      const apiTherapists = Array.isArray(data?.therapists) ? data.therapists : []
+      setTherapists(apiTherapists.map(normalizeTherapist))
+      // setTherapists(data.therapists)
     } catch (error) {
       // Mock data for demo
       const mockTherapists = [
@@ -148,38 +171,80 @@ export default function TherapistPage() {
     }
   }
 
-  const filterAndSortTherapists = () => {
-    const filtered = therapists.filter((therapist) => {
-      const matchesSearch =
-        therapist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        therapist.specialization.some((spec) => spec.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        therapist.bio.toLowerCase().includes(searchTerm.toLowerCase())
+  // const filterAndSortTherapists = () => {
+  //   const filtered = therapists.filter((therapist) => {
+  //     const matchesSearch =
+  //       therapist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //       therapist.specialization.some((spec) => spec.toLowerCase().includes(searchTerm.toLowerCase())) ||
+  //       therapist.bio.toLowerCase().includes(searchTerm.toLowerCase())
 
+  //     const matchesSpecialization =
+  //       selectedSpecialization === "all" ||
+  //       therapist.specialization.some((spec) => spec.toLowerCase().includes(selectedSpecialization.toLowerCase()))
+
+  //     const matchesLocation = selectedLocation === "all" || therapist.location === selectedLocation
+
+  //     return matchesSearch && matchesSpecialization && matchesLocation
+  //   })
+
+  //   // Sort therapists
+  //   filtered.sort((a, b) => {
+  //     switch (sortBy) {
+  //       case "rating":
+  //         return b.rating - a.rating
+  //       case "experience":
+  //         return b.experience - a.experience
+  //       case "name":
+  //         return a.name.localeCompare(b.name)
+  //       default:
+  //         return 0
+  //     }
+  //   })
+
+  //   setFilteredTherapists(filtered)
+  // }
+  const filterAndSortTherapists = () => {
+    const q = (searchTerm || "").toLowerCase()
+  
+    const filtered = (therapists || []).filter((therapist) => {
+      const name = (therapist.name || "").toLowerCase()
+      const bio = (therapist.bio || "").toLowerCase()
+      const specs = Array.isArray(therapist.specialization) ? therapist.specialization : []
+      const loc = therapist.location || "—"
+  
+      const matchesSearch =
+        name.includes(q) ||
+        specs.some((s) => (s || "").toLowerCase().includes(q)) ||
+        bio.includes(q)
+  
       const matchesSpecialization =
         selectedSpecialization === "all" ||
-        therapist.specialization.some((spec) => spec.toLowerCase().includes(selectedSpecialization.toLowerCase()))
-
-      const matchesLocation = selectedLocation === "all" || therapist.location === selectedLocation
-
+        specs.some((s) =>
+          (s || "").toLowerCase().includes((selectedSpecialization || "").toLowerCase())
+        )
+  
+      const matchesLocation =
+        selectedLocation === "all" || loc === selectedLocation
+  
       return matchesSearch && matchesSpecialization && matchesLocation
     })
-
-    // Sort therapists
+  
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "rating":
-          return b.rating - a.rating
+          return (b.rating ?? 0) - (a.rating ?? 0)
         case "experience":
-          return b.experience - a.experience
+          return (b.experience ?? 0) - (a.experience ?? 0)
         case "name":
-          return a.name.localeCompare(b.name)
+          return (a.name || "").localeCompare(b.name || "")
         default:
           return 0
       }
     })
-
+  
     setFilteredTherapists(filtered)
   }
+  
 
   const handleBookAppointment = (therapist) => {
     toast({

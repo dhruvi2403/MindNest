@@ -1,5 +1,5 @@
 import React from "react"
-import DynamicAssessmentPage from "./DynamicAssessmentPage"
+import DynamicAssessmentPage from "./DynamicAssessmentPage.jsx"
 
 const questions = [
   // Demographics (matching dataset fields)

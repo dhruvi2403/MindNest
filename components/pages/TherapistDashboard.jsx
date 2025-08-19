@@ -36,7 +36,7 @@ export default function TherapistDashboard() {
   useEffect(() => {
     const checkTherapistProfile = async () => {
       try {
-        const response = await fetch("/api/therapists/profile", {
+        const response = await fetch("http://localhost:5000/api/therapists/profile", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -57,7 +57,7 @@ export default function TherapistDashboard() {
 
     const fetchAppointments = async () => {
       try {
-        const response = await fetch("/api/appointments/upcoming", {
+        const response = await fetch("http://localhost:5000/api/appointments/upcoming", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -89,7 +89,7 @@ export default function TherapistDashboard() {
 
   const handleAppointmentStatusUpdate = async (appointmentId, newStatus) => {
     try {
-      const response = await fetch(`/api/appointments/${appointmentId}/status`, {
+      const response = await fetch(`http://localhost:5000/api/appointments/${appointmentId}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

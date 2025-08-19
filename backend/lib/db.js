@@ -105,9 +105,8 @@ const therapistSchema = new mongoose.Schema(
       required: true,
     },
     yearsOfPractice: {
-      type: Number,
+      type: String, // Changed from Number to String to match the form input
       required: true,
-      min: 0,
     },
   },
   {

@@ -117,7 +117,7 @@ export default function TherapistOnboardingModal({ isOpen, onClose, onComplete }
 
     setLoading(true)
     try {
-      const response = await fetch("/api/therapists", {
+      const response = await fetch("http://localhost:5000/api/therapists", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
