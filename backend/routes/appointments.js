@@ -4,6 +4,102 @@ import { authenticateToken } from '../lib/auth.js';
 
 const router = express.Router();
 
+// Create a new appointment
+router.post('/', authenticateToken, async (req, res) => {
+  try {
+    const { role } = req.user;
+    if (role !== 'client') {
+      return res.status(403).json({ error: 'Only clients can book appointments' });
+    }
+
+    const { therapistId, date, time, type, notes, paymentId, amount, paymentMethod, paymentStatus } = req.body;
+    const clientId = req.user.userId;
+
+    // Validate required fields
+    if (!therapistId || !date || !time || !type) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Find therapist to validate (try both _id and id)
+    let therapist = await db.therapists.findById(therapistId);
+    if (!therapist) {
+      // If not found by _id, try to find by the therapist's user ID or other identifier
+      therapist = await db.therapists.findOne({ _id: therapistId });
+    }
+    if (!therapist) {
+      return res.status(404).json({ error: 'Therapist not found or not verified' });
+    }
+
+    // Check if the time slot is already booked
+    const existingAppointment = await db.appointments.findByTherapistIdAndDateTime(therapistId, date, time);
+    if (existingAppointment) {
+      return res.status(409).json({ error: 'This time slot is already booked' });
+    }
+
+    // Create appointment
+    const appointmentData = {
+      clientId,
+      therapistId,
+      date: new Date(date),
+      time,
+      type,
+      notes: notes || '',
+      status: 'scheduled',
+      paymentId: paymentId || null,
+      amount: amount || 0,
+      paymentMethod: paymentMethod || null,
+      paymentStatus: paymentStatus || 'pending'
+    };
+
+    const appointment = await db.appointments.create(appointmentData);
+
+    res.status(201).json({
+      message: 'Appointment booked successfully',
+      appointment
+    });
+  } catch (error) {
+    console.error('Error creating appointment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update appointment status (confirm, complete, etc.)
+router.put('/:id/:action', authenticateToken, async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    const { role } = req.user;
+
+    if (role !== 'therapist') {
+      return res.status(403).json({ error: 'Only therapists can update appointment status' });
+    }
+
+    const validActions = ['confirm', 'complete', 'reschedule'];
+    if (!validActions.includes(action)) {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    const statusMap = {
+      'confirm': 'confirmed',
+      'complete': 'completed',
+      'reschedule': 'rescheduled'
+    };
+
+    const appointment = await db.appointments.update(id, { status: statusMap[action] });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    res.json({
+      message: `Appointment ${action}ed successfully`,
+      appointment
+    });
+  } catch (error) {
+    console.error('Error updating appointment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get all appointments for a user (client or therapist)
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -86,6 +182,57 @@ router.get('/therapist/:therapistId', authenticateToken, async (req, res) => {
   }
 });
 
+// Get real-time availability for a therapist on a specific date
+router.get('/availability/:therapistId/:date', authenticateToken, async (req, res) => {
+  try {
+    const { therapistId, date } = req.params;
+
+    // Get therapist details
+    const therapist = await db.therapists.findById(therapistId);
+    if (!therapist) {
+      return res.status(404).json({ error: 'Therapist not found' });
+    }
+
+    // Check if therapist is available on this day
+    const appointmentDate = new Date(date);
+    const dayOfWeek = appointmentDate.toLocaleDateString('en-US', { weekday: 'long' });
+
+    if (!therapist.availability || !therapist.availability.includes(dayOfWeek)) {
+      return res.json({
+        available: false,
+        reason: 'Therapist not available on this day',
+        availableSlots: []
+      });
+    }
+
+    // Get existing appointments for this date
+    const existingAppointments = await db.appointments.findByTherapistIdAndDate(therapistId, date);
+    const bookedTimes = existingAppointments
+      .filter(apt => apt.status !== 'cancelled')
+      .map(apt => apt.time);
+
+    // Define all possible time slots
+    const allTimeSlots = [
+      "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+      "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
+      "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"
+    ];
+
+    // Filter out booked slots
+    const availableSlots = allTimeSlots.filter(time => !bookedTimes.includes(time));
+
+    res.json({
+      available: availableSlots.length > 0,
+      availableSlots,
+      bookedSlots: bookedTimes,
+      therapistAvailability: therapist.availability
+    });
+  } catch (error) {
+    console.error('Error checking availability:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get upcoming appointments
 router.get('/upcoming', authenticateToken, async (req, res) => {
   try {
@@ -143,7 +290,7 @@ router.post('/', authenticateToken, async (req, res) => {
     );
 
     if (conflictingAppointment) {
-      return res.status(400).json({ error: 'Time slot not available' });
+      return res.status(409).json({ error: 'Time slot already taken' });
     }
 
     // Create appointment

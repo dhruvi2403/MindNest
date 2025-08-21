@@ -6,14 +6,16 @@ import { Textarea } from "../ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Checkbox } from "../ui/checkbox"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
-import { useToast } from "../../src/hooks/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog"
+import { useToast } from "@/hooks/use-toast"
 import { Stethoscope, GraduationCap, MapPin, Clock } from "lucide-react"
 
 export default function TherapistOnboardingModal({ isOpen, onComplete }) {
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
+
+  console.log("TherapistOnboardingModal rendered with isOpen:", isOpen);
   const [formData, setFormData] = useState({
     specialization: [],
     bio: "",
@@ -119,8 +121,8 @@ export default function TherapistOnboardingModal({ isOpen, onComplete }) {
     setLoading(true)
 
     try {
-      // Submit therapist profile data
-      const response = await fetch("/api/therapists", {
+      // Submit therapist onboarding data
+      const response = await fetch("/api/therapists/onboard", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -130,8 +132,11 @@ export default function TherapistOnboardingModal({ isOpen, onComplete }) {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to create therapist profile")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to complete onboarding")
       }
+
+      const data = await response.json()
 
       toast({
         title: "Profile Created Successfully!",
@@ -143,7 +148,7 @@ export default function TherapistOnboardingModal({ isOpen, onComplete }) {
       console.error("Error creating therapist profile:", error)
       toast({
         title: "Profile Creation Failed",
-        description: "Please try again or contact support.",
+        description: error.message || "Please try again or contact support.",
         variant: "destructive",
       })
     } finally {
@@ -159,8 +164,8 @@ export default function TherapistOnboardingModal({ isOpen, onComplete }) {
         <DialogHeader className="flex items-center space-x-3 p-6 border-b">
           <Stethoscope className="h-6 w-6 text-primary" />
           <div>
-            <h2 className="text-xl font-semibold">Complete Your Therapist Profile</h2>
-            <p className="text-sm text-gray-600">Step {currentStep} of 3</p>
+            <DialogTitle className="text-xl font-semibold">Complete Your Therapist Profile</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">Step {currentStep} of 3 - Please provide your professional information to complete your profile</DialogDescription>
           </div>
         </DialogHeader>
 

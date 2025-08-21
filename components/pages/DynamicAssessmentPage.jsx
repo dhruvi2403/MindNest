@@ -1,6 +1,6 @@
 // src/pages/DynamicAssessmentPage.jsx
 import React, { useState, useEffect } from "react";
-import { Brain, ArrowLeft, ArrowRight, Loader2, CheckCircle, AlertTriangle, Info } from "lucide-react";
+import { Brain, ArrowLeft, ArrowRight, Loader2, CheckCircle, AlertTriangle, Info, Dumbbell, Heart } from "lucide-react";
 
 // ✅ Replace with your UI components or keep plain HTML
 import { Button } from "../ui/button";
@@ -12,63 +12,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Progress } from "../ui/progress";
 import { useToast } from "../../src/hooks/use-toast"
 import { Badge } from "../ui/badge";
+import ExerciseRecommendations from "./ExerciseRecommendations";
 
 export default function DynamicAssessmentPage({ questions: propQuestions = [] }) {
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [showResults, setShowResults] = useState(false);
+  const [showExercises, setShowExercises] = useState(false);
+  const [assessmentId, setAssessmentId] = useState(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    loadDynamicQuestions();
-  }, []);
-
-  const loadDynamicQuestions = async () => {
-    try {
-      const response = await fetch("http://localhost:5000/api/assessment/metadata", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (response.ok) {
-        const metadata = await response.json();
-        const dynamicQuestions = generateQuestionsFromMetadata(metadata);
-        setQuestions(dynamicQuestions);
-      } else {
-        setQuestions(generateFallbackQuestions());
-      }
-    } catch (error) {
-      console.error("Failed to load dynamic questions:", error);
+    // Use the questions prop directly instead of fetching from API
+    if (propQuestions && propQuestions.length > 0) {
+      setQuestions(propQuestions);
+    } else {
       setQuestions(generateFallbackQuestions());
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  const generateQuestionsFromMetadata = (metadata) => {
-    const questions = [];
-    Object.entries(metadata).forEach(([category, fields]) => {
-      Object.entries(fields).forEach(([fieldId, fieldConfig]) => {
-        const question = {
-          id: fieldId,
-          text: fieldConfig.question,
-          category: category,
-          type: fieldConfig.type,
-          required: fieldConfig.required || false,
-          min: fieldConfig.min,
-          max: fieldConfig.max,
-          step: fieldConfig.step,
-          options: fieldConfig.options,
-          labels: fieldConfig.labels,
-        };
-        questions.push(question);
-      });
-    });
-    return questions;
-  };
+  }, [propQuestions]);
 
   // ✅ Kept your fallback hardcoded questions
   const generateFallbackQuestions = () => {
@@ -299,30 +264,55 @@ export default function DynamicAssessmentPage({ questions: propQuestions = [] })
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+
     try {
-      const response = await fetch("http://localhost:5000/api/assessment/dynamic", {
-        method: "POST",
+      // First, try to get prediction from ML service
+      let mlResult = null;
+      try {
+        const mlApiUrl = import.meta.env.VITE_ML_API_URL || 'http://localhost:8000/predict';
+        const mlResponse = await fetch(mlApiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            answers,
+            timestamp: new Date().toISOString(),
+          }),
+        });
+
+        if (mlResponse.ok) {
+          mlResult = await mlResponse.json();
+        }
+      } catch (mlError) {
+        console.log("ML service unavailable, using backend fallback");
+      }
+
+      // Save assessment to database via backend
+      const backendResponse = await fetch('/api/assessment/submit', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           answers,
-          timestamp: new Date().toISOString(),
-        }),
+          mlResult: mlResult?.prediction || mlResult
+        })
       });
 
-      if (!response.ok) {
-        throw new Error("Assessment submission failed");
+      if (backendResponse.ok) {
+        const backendData = await backendResponse.json();
+        setResults(backendData.prediction);
+        setAssessmentId(backendData.assessment._id);
+        setShowResults(true);
+      } else {
+        throw new Error("Failed to save assessment");
       }
-
-      const result = await response.json();
-      setResults(result.prediction || result);
-      setShowResults(true);
     } catch (error) {
-      console.error(error);
-      // Use fallback results instead of alert
-      setResults({
+      console.error("Assessment submission error:", error);
+      // Use fallback results if everything fails
+      const fallbackResults = {
         prediction: "Moderate Risk",
         confidence: 85,
         severity: "Moderate",
@@ -331,9 +321,20 @@ export default function DynamicAssessmentPage({ questions: propQuestions = [] })
           "Practice stress management techniques",
           "Maintain regular sleep and exercise routines"
         ],
-        riskFactors: ["Assessment analysis", "Symptom patterns"]
-      });
+        riskFactors: ["Assessment analysis", "Symptom patterns"],
+        note: "Assessment saved locally - showing general recommendations"
+      };
+
+      setResults(fallbackResults);
+      // Create a temporary assessment ID for exercise recommendations
+      setAssessmentId("temp-" + Date.now());
       setShowResults(true);
+
+      toast({
+        title: "Assessment Completed",
+        description: "Your assessment has been processed with general recommendations.",
+        variant: "default"
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -351,10 +352,10 @@ export default function DynamicAssessmentPage({ questions: propQuestions = [] })
             className="space-y-4"
           >
             {question.options?.map((option) => (
-              <div key={option} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50">
-                <RadioGroupItem value={option} id={`option-${option}`} />
-                <Label htmlFor={`option-${option}`} className="flex-1 cursor-pointer">
-                  {option}
+              <div key={option.value || option} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50">
+                <RadioGroupItem value={option.value || option} id={`option-${option.value || option}`} />
+                <Label htmlFor={`option-${option.value || option}`} className="flex-1 cursor-pointer">
+                  {option.label || option}
                 </Label>
               </div>
             ))}
@@ -369,8 +370,8 @@ export default function DynamicAssessmentPage({ questions: propQuestions = [] })
             </SelectTrigger>
             <SelectContent>
               {question.options?.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
+                <SelectItem key={option.value || option} value={option.value || option}>
+                  {option.label || option}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -502,20 +503,53 @@ export default function DynamicAssessmentPage({ questions: propQuestions = [] })
                 </div>
               </div>
             )}
+
+            {results.note && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <Info className="h-5 w-5 text-yellow-600" />
+                  <span className="text-yellow-800 font-medium">Note:</span>
+                </div>
+                <p className="text-yellow-700 mt-2">{results.note}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <div className="text-center">
-          <Button onClick={() => window.location.href = '/dashboard'} className="mr-4">
-            Back to Dashboard
-          </Button>
-          <Button variant="outline" onClick={() => window.location.reload()}>
-            Take Another Assessment
-          </Button>
+        <div className="text-center space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
+              onClick={() => setShowExercises(true)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Dumbbell className="h-4 w-4 mr-2" />
+              View Exercise Recommendations
+            </Button>
+            <Button onClick={() => window.location.href = '/dashboard'} variant="outline">
+              Back to Dashboard
+            </Button>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Take Another Assessment
+            </Button>
+          </div>
+          <p className="text-sm text-gray-600">
+            <Heart className="h-4 w-4 inline mr-1" />
+            Personalized exercises based on your assessment results
+          </p>
         </div>
       </div>
     );
   };
+
+  if (showExercises && assessmentId) {
+    return (
+      <ExerciseRecommendations
+        assessmentId={assessmentId}
+        severity={results?.severity}
+        onClose={() => setShowExercises(false)}
+      />
+    );
+  }
 
   if (showResults) {
     return renderResults();

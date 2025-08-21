@@ -23,26 +23,53 @@ export default function TherapistPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedSpecialization, setSelectedSpecialization] = useState("all")
   const [selectedLocation, setSelectedLocation] = useState("all")
+  const [selectedAvailability, setSelectedAvailability] = useState("all")
+  const [selectedRating, setSelectedRating] = useState("all")
+  const [selectedExperience, setSelectedExperience] = useState("all")
   const [sortBy, setSortBy] = useState("rating")
   const [selectedTherapist, setSelectedTherapist] = useState(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [bookingTherapist, setBookingTherapist] = useState(null)
+  const [showFilters, setShowFilters] = useState(false)
   const { toast } = useToast()
 
   const specializations = [
-    "Anxiety",
+    "Anxiety Disorders",
     "Depression",
-    "Stress Management",
-    "Trauma",
-    "Family Therapy",
-    "Relationship Counseling",
+    "Trauma & PTSD",
+    "Relationship Issues",
     "Addiction",
-    "PTSD",
+    "Eating Disorders",
+    "OCD",
+    "Bipolar Disorder",
+    "Grief & Loss",
+    "Stress Management",
+    "Career Counseling",
+    "Family Therapy",
+    "Child & Adolescent",
+    "Couples Therapy",
+    "Group Therapy",
     "Mindfulness",
     "Cognitive Behavioral Therapy",
   ]
 
-  const locations = ["New York, NY", "Los Angeles, CA", "Chicago, IL", "Austin, TX", "Seattle, WA", "Denver, CO"]
+  const availabilityOptions = [
+    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+  ]
+
+  const ratingOptions = [
+    { value: "4.5", label: "4.5+ Stars" },
+    { value: "4.0", label: "4.0+ Stars" },
+    { value: "3.5", label: "3.5+ Stars" },
+    { value: "3.0", label: "3.0+ Stars" },
+  ]
+
+  const experienceOptions = [
+    { value: "10", label: "10+ Years" },
+    { value: "5", label: "5+ Years" },
+    { value: "2", label: "2+ Years" },
+    { value: "1", label: "1+ Years" },
+  ]
 
   useEffect(() => {
     fetchTherapists()
@@ -50,7 +77,7 @@ export default function TherapistPage() {
 
   useEffect(() => {
     filterAndSortTherapists()
-  }, [therapists, searchTerm, selectedSpecialization, selectedLocation, sortBy])
+  }, [therapists, searchTerm, selectedSpecialization, selectedLocation, selectedAvailability, selectedRating, selectedExperience, sortBy])
 
   const fetchTherapists = async () => {
     try {
@@ -62,8 +89,8 @@ export default function TherapistPage() {
 
       if (response.ok) {
         const data = await response.json()
-        // Normalize therapist data from API
-        const normalizedTherapists = data.therapists ? data.therapists.map(normalizeTherapist) : []
+        // Normalize therapist data from API - data is directly the therapists array
+        const normalizedTherapists = Array.isArray(data) ? data.map(normalizeTherapist) : []
         setTherapists(normalizedTherapists)
       } else {
         throw new Error("Failed to fetch therapists")
@@ -84,7 +111,7 @@ export default function TherapistPage() {
 
   const normalizeTherapist = (t) => ({
     id: t.id ?? t._id ?? crypto.randomUUID(),
-    name: t.name ?? "Unknown Therapist",
+    name: t.userId?.name || t.name || "Therapist",
     bio: t.bio ?? "",
     location: t.location ?? "—",
     rating: Number.isFinite(+t.rating) ? +t.rating : 4.5,
@@ -178,44 +205,79 @@ export default function TherapistPage() {
 
   const filterAndSortTherapists = () => {
     const q = (searchTerm || "").toLowerCase()
-  
+
     const filtered = (therapists || []).filter((therapist) => {
       const name = (therapist.name || "").toLowerCase()
       const bio = (therapist.bio || "").toLowerCase()
       const specs = Array.isArray(therapist.specialization) ? therapist.specialization : []
       const loc = therapist.location || "—"
-  
+      const availability = Array.isArray(therapist.availability) ? therapist.availability : []
+      const rating = therapist.rating ?? 0
+      const experience = therapist.experience ?? therapist.yearsOfPractice ?? 0
+
       const matchesSearch =
         name.includes(q) ||
         specs.some((s) => (s || "").toLowerCase().includes(q)) ||
-        bio.includes(q)
-  
+        bio.includes(q) ||
+        loc.toLowerCase().includes(q)
+
       const matchesSpecialization =
         selectedSpecialization === "all" ||
         specs.some((s) =>
           (s || "").toLowerCase().includes((selectedSpecialization || "").toLowerCase())
         )
-  
+
       const matchesLocation =
-        selectedLocation === "all" || loc === selectedLocation
-  
-      return matchesSearch && matchesSpecialization && matchesLocation
+        selectedLocation === "all" ||
+        loc.toLowerCase().includes((selectedLocation || "").toLowerCase())
+
+      const matchesAvailability =
+        selectedAvailability === "all" ||
+        availability.includes(selectedAvailability)
+
+      const matchesRating =
+        selectedRating === "all" ||
+        rating >= parseFloat(selectedRating)
+
+      const matchesExperience =
+        selectedExperience === "all" ||
+        parseFloat(experience) >= parseFloat(selectedExperience)
+
+      return matchesSearch && matchesSpecialization && matchesLocation &&
+             matchesAvailability && matchesRating && matchesExperience
     })
-  
+
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "rating":
           return (b.rating ?? 0) - (a.rating ?? 0)
         case "experience":
-          return (b.experience ?? 0) - (a.experience ?? 0)
+          return (parseFloat(b.experience ?? b.yearsOfPractice ?? 0)) - (parseFloat(a.experience ?? a.yearsOfPractice ?? 0))
         case "name":
           return (a.name || "").localeCompare(b.name || "")
+        case "location":
+          return (a.location || "").localeCompare(b.location || "")
         default:
           return 0
       }
     })
-  
+
     setFilteredTherapists(filtered)
+  }
+
+  const clearAllFilters = () => {
+    setSearchTerm("")
+    setSelectedSpecialization("all")
+    setSelectedLocation("all")
+    setSelectedAvailability("all")
+    setSelectedRating("all")
+    setSelectedExperience("all")
+    setSortBy("rating")
+  }
+
+  const getUniqueLocations = () => {
+    const locations = [...new Set(therapists.map(t => t.location).filter(Boolean))]
+    return locations.sort()
   }
 
   const handleBookAppointment = (therapist) => {
@@ -263,13 +325,32 @@ export default function TherapistPage() {
         {/* Search and Filters */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Filter className="h-5 w-5" />
-              <span>Search & Filter</span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center space-x-2">
+                <Filter className="h-5 w-5" />
+                <span>Search & Filter</span>
+              </CardTitle>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  {showFilters ? 'Hide Filters' : 'More Filters'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAllFilters}
+                >
+                  Clear All
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Basic Filters - Always Visible */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -303,7 +384,7 @@ export default function TherapistPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Locations</SelectItem>
-                  {locations.map((location) => (
+                  {getUniqueLocations().map((location) => (
                     <SelectItem key={location} value={location}>
                       {location}
                     </SelectItem>
@@ -320,17 +401,121 @@ export default function TherapistPage() {
                   <SelectItem value="rating">Highest Rated</SelectItem>
                   <SelectItem value="experience">Most Experienced</SelectItem>
                   <SelectItem value="name">Name (A-Z)</SelectItem>
+                  <SelectItem value="location">Location</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Advanced Filters - Collapsible */}
+            {showFilters && (
+              <div className="border-t pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Availability Filter */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Available Days</label>
+                    <Select value={selectedAvailability} onValueChange={setSelectedAvailability}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any Day" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any Day</SelectItem>
+                        {availabilityOptions.map((day) => (
+                          <SelectItem key={day} value={day}>
+                            {day}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Rating Filter */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Minimum Rating</label>
+                    <Select value={selectedRating} onValueChange={setSelectedRating}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any Rating" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any Rating</SelectItem>
+                        {ratingOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Experience Filter */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Experience Level</label>
+                    <Select value={selectedExperience} onValueChange={setSelectedExperience}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any Experience" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any Experience</SelectItem>
+                        {experienceOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Results Summary */}
         <div className="mb-6">
-          <p className="text-gray-600">
-            Showing {filteredTherapists.length} of {therapists.length} therapists
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-gray-600">
+              Showing {filteredTherapists.length} of {therapists.length} therapists
+            </p>
+
+            {/* Active Filters */}
+            <div className="flex items-center space-x-2">
+              {(searchTerm || selectedSpecialization !== "all" || selectedLocation !== "all" ||
+                selectedAvailability !== "all" || selectedRating !== "all" || selectedExperience !== "all") && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Active filters:</span>
+                  {searchTerm && (
+                    <Badge variant="secondary" className="text-xs">
+                      Search: "{searchTerm}"
+                    </Badge>
+                  )}
+                  {selectedSpecialization !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedSpecialization}
+                    </Badge>
+                  )}
+                  {selectedLocation !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedLocation}
+                    </Badge>
+                  )}
+                  {selectedAvailability !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedAvailability}
+                    </Badge>
+                  )}
+                  {selectedRating !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      {ratingOptions.find(r => r.value === selectedRating)?.label}
+                    </Badge>
+                  )}
+                  {selectedExperience !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      {experienceOptions.find(e => e.value === selectedExperience)?.label}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Therapist Grid */}

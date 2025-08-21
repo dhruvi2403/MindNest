@@ -5,9 +5,10 @@ import { Label } from "../ui/label"
 import { Textarea } from "../ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
-import { useToast } from "../../src/hooks/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog"
+import { useToast } from "@/hooks/use-toast"
 import { Calendar, Clock, MapPin, User, MessageSquare } from "lucide-react"
+import PaymentModal from "./PaymentModal"
 
 export default function AppointmentBookingModal({ isOpen, onClose, therapist, onBookingComplete }) {
   const { toast } = useToast()
@@ -17,7 +18,11 @@ export default function AppointmentBookingModal({ isOpen, onClose, therapist, on
   const [appointmentType, setAppointmentType] = useState("individual")
   const [notes, setNotes] = useState("")
   const [availableSlots, setAvailableSlots] = useState([])
-  const [existingAppointments, setExistingAppointments] = useState([])
+  const [bookedSlots, setBookedSlots] = useState([])
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
+  const [realTimeAvailability, setRealTimeAvailability] = useState(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [pendingBookingData, setPendingBookingData] = useState(null)
 
   const appointmentTypes = [
     { value: "individual", label: "Individual Session" },
@@ -35,9 +40,22 @@ export default function AppointmentBookingModal({ isOpen, onClose, therapist, on
   useEffect(() => {
     if (isOpen && therapist) {
       fetchAvailableSlots()
-      fetchExistingAppointments()
+      if (selectedDate) {
+        fetchRealTimeAvailability()
+      }
     }
   }, [isOpen, therapist, selectedDate])
+
+  // Auto-refresh availability every 30 seconds when modal is open
+  useEffect(() => {
+    if (isOpen && selectedDate && therapist) {
+      const interval = setInterval(() => {
+        fetchRealTimeAvailability()
+      }, 30000) // 30 seconds
+
+      return () => clearInterval(interval)
+    }
+  }, [isOpen, selectedDate, therapist])
 
   const fetchAvailableSlots = async () => {
     try {
@@ -56,42 +74,62 @@ export default function AppointmentBookingModal({ isOpen, onClose, therapist, on
     }
   }
 
-  const fetchExistingAppointments = async () => {
+  const fetchRealTimeAvailability = async () => {
+    if (!selectedDate || !therapist) return
+
+    setAvailabilityLoading(true)
     try {
-      const response = await fetch(`/api/appointments/therapist/${therapist.id}?date=${selectedDate}`, {
+      const response = await fetch(`/api/appointments/availability/${therapist.id}/${selectedDate}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       })
-      
+
       if (response.ok) {
         const data = await response.json()
-        setExistingAppointments(data.appointments || [])
+        setRealTimeAvailability(data)
+        setAvailableSlots(data.availableSlots || [])
+        setBookedSlots(data.bookedSlots || [])
       }
     } catch (error) {
-      console.error("Error fetching existing appointments:", error)
+      console.error("Error fetching real-time availability:", error)
+      toast({
+        title: "Availability Check Failed",
+        description: "Unable to check current availability. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setAvailabilityLoading(false)
     }
   }
 
-  const getAvailableTimeSlots = () => {
-    if (!selectedDate || !therapist) return []
-    
-    // Filter out times that are not in therapist's availability
-    const therapistAvailableDays = therapist.availability || []
-    const selectedDay = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })
-    
-    if (!therapistAvailableDays.includes(selectedDay)) {
-      return []
+  const getTimeSlotStatus = (time) => {
+    if (bookedSlots.includes(time)) {
+      return 'booked'
     }
+    if (availableSlots.includes(time)) {
+      return 'available'
+    }
+    return 'unavailable'
+  }
 
-    // Filter out times that conflict with existing appointments
-    const bookedTimes = existingAppointments.map(apt => apt.time)
-    return timeSlots.filter(time => !bookedTimes.includes(time))
+  const getTimeSlotColor = (time) => {
+    const status = getTimeSlotStatus(time)
+    switch (status) {
+      case 'available':
+        return 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
+      case 'booked':
+        return 'bg-red-100 text-red-800 border-red-300 cursor-not-allowed'
+      case 'unavailable':
+        return 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
+      default:
+        return 'bg-gray-100 text-gray-500 border-gray-300'
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!selectedDate || !selectedTime || !appointmentType) {
       toast({
         title: "Missing Information",
@@ -101,38 +139,40 @@ export default function AppointmentBookingModal({ isOpen, onClose, therapist, on
       return
     }
 
+    // Check if selected time is still available
+    if (getTimeSlotStatus(selectedTime) !== 'available') {
+      toast({
+        title: "Time Slot No Longer Available",
+        description: "This time slot has been taken by another client. Please select a different time.",
+        variant: "destructive",
+      })
+      // Refresh availability
+      fetchRealTimeAvailability()
+      return
+    }
+
     setLoading(true)
 
     try {
-      const response = await fetch("/api/appointments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          therapistId: therapist.id,
-          date: selectedDate,
-          time: selectedTime,
-          type: appointmentType,
-          notes: notes.trim() || undefined,
-        }),
-      })
+      // Final availability check before booking
+      await fetchRealTimeAvailability()
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to book appointment")
+      if (!availableSlots.includes(selectedTime)) {
+        throw new Error("This time slot is no longer available. Please select a different time.")
       }
 
-      const data = await response.json()
-      
-      toast({
-        title: "Appointment Booked!",
-        description: `Your appointment with ${therapist.name} has been scheduled for ${selectedDate} at ${selectedTime}.`,
-      })
+      // Prepare booking data for payment
+      const bookingData = {
+        therapistId: therapist.id,
+        therapistName: therapist.name,
+        date: selectedDate,
+        time: selectedTime,
+        type: appointmentType,
+        notes: notes.trim() || undefined,
+      }
 
-      onBookingComplete(data.appointment)
-      onClose()
+      setPendingBookingData(bookingData)
+      setShowPaymentModal(true)
     } catch (error) {
       console.error("Booking error:", error)
       toast({
@@ -145,7 +185,49 @@ export default function AppointmentBookingModal({ isOpen, onClose, therapist, on
     }
   }
 
-  const availableTimeSlots = getAvailableTimeSlots()
+  const handlePaymentSuccess = async (paymentData) => {
+    try {
+      // Now actually book the appointment with payment info
+      const response = await fetch("/api/appointments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          ...pendingBookingData,
+          paymentId: paymentData.paymentId,
+          amount: paymentData.amount,
+          paymentMethod: paymentData.paymentMethod,
+          paymentStatus: "paid"
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to book appointment")
+      }
+
+      const data = await response.json()
+
+      toast({
+        title: "Appointment Confirmed! 🎉",
+        description: `Your appointment with ${therapist.name} has been booked and paid for ${selectedDate} at ${selectedTime}.`,
+      })
+
+      onBookingComplete(data.appointment)
+      onClose()
+    } catch (error) {
+      console.error("Final booking error:", error)
+      toast({
+        title: "Booking Error",
+        description: error.message || "Failed to complete booking after payment. Please contact support.",
+        variant: "destructive",
+      })
+    }
+  }
+
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -155,9 +237,11 @@ export default function AppointmentBookingModal({ isOpen, onClose, therapist, on
             <Calendar className="h-6 w-6 text-primary" />
             <div>
               <h2 className="text-xl font-semibold">Book Appointment</h2>
-              <p className="text-sm text-gray-600">Schedule a session with {therapist?.name}</p>
             </div>
           </DialogTitle>
+          <DialogDescription className="text-sm text-gray-600">
+            Schedule a session with {therapist?.name}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -211,30 +295,69 @@ export default function AppointmentBookingModal({ isOpen, onClose, therapist, on
 
             {/* Time Selection */}
             <div>
-              <Label htmlFor="time" className="text-sm font-medium">
-                Select Time *
-              </Label>
-              <Select value={selectedTime} onValueChange={setSelectedTime}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a time slot" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTimeSlots.length > 0 ? (
-                    availableTimeSlots.map((time) => (
-                      <SelectItem key={time} value={time}>
-                        {time}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="" disabled>
-                      No available slots for this date
-                    </SelectItem>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-medium">Select Time *</Label>
+                {availabilityLoading && (
+                  <span className="text-xs text-gray-500">Checking availability...</span>
+                )}
+              </div>
+
+              {selectedDate ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    {timeSlots.map((time) => {
+                      const status = getTimeSlotStatus(time)
+                      const isSelected = selectedTime === time
+                      const isClickable = status === 'available'
+
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => isClickable && setSelectedTime(time)}
+                          disabled={!isClickable}
+                          className={`
+                            p-2 text-xs rounded-md border transition-all
+                            ${isSelected ? 'ring-2 ring-primary ring-offset-1' : ''}
+                            ${getTimeSlotColor(time)}
+                          `}
+                        >
+                          <div className="font-medium">{time}</div>
+                          <div className="text-xs opacity-75">
+                            {status === 'available' && 'Available'}
+                            {status === 'booked' && 'Booked'}
+                            {status === 'unavailable' && 'N/A'}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex items-center justify-center space-x-4 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
+                      <span>Available</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-red-100 border border-red-300 rounded"></div>
+                      <span>Booked</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-gray-100 border border-gray-300 rounded"></div>
+                      <span>Unavailable</span>
+                    </div>
+                  </div>
+
+                  {realTimeAvailability && !realTimeAvailability.available && (
+                    <p className="text-xs text-red-500 text-center">
+                      {realTimeAvailability.reason || 'No available time slots for this date.'}
+                    </p>
                   )}
-                </SelectContent>
-              </Select>
-              {selectedDate && availableTimeSlots.length === 0 && (
-                <p className="text-xs text-red-500 mt-1">
-                  No available time slots for this date. Please select a different date.
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  Please select a date first to see available time slots
                 </p>
               )}
             </div>
@@ -278,12 +401,20 @@ export default function AppointmentBookingModal({ isOpen, onClose, therapist, on
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || availableTimeSlots.length === 0}>
+            <Button type="submit" disabled={loading || availableSlots.length === 0}>
               {loading ? "Booking..." : "Book Appointment"}
             </Button>
           </div>
         </form>
       </DialogContent>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        appointmentDetails={pendingBookingData}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
     </Dialog>
   )
 }

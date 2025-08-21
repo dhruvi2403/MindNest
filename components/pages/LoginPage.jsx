@@ -15,12 +15,42 @@ export default function LoginPage() {
   const [role, setRole] = useState("client")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({})
   const { login } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  const validatePassword = (password) => {
+    return password.length >= 6
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+
+    if (!validateEmail(email)) {
+      newErrors.email = "Please enter a valid email address"
+    }
+
+    if (!validatePassword(password)) {
+      newErrors.password = "Password must be at least 6 characters long"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (!validateForm()) {
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -37,10 +67,9 @@ export default function LoginPage() {
         navigate("/dashboard")
       }
     } catch (error) {
-      toast({
-        title: "Login failed",
-        description: error.message || "Please check your credentials and try again.",
-        variant: "destructive",
+      // Show error message under the form instead of toast for better UX
+      setErrors({
+        general: error.message || "Invalid credentials. Please check your email and password."
       })
     } finally {
       setLoading(false)
@@ -72,9 +101,18 @@ export default function LoginPage() {
                   type="email"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (errors.email) {
+                      setErrors(prev => ({ ...prev, email: "" }))
+                    }
+                  }}
+                  className={errors.email ? "border-red-500" : ""}
                   required
                 />
+                {errors.email && (
+                  <p className="text-sm text-red-500">{errors.email}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -85,7 +123,13 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (errors.password) {
+                        setErrors(prev => ({ ...prev, password: "" }))
+                      }
+                    }}
+                    className={errors.password ? "border-red-500" : ""}
                     required
                   />
                   <Button
@@ -98,6 +142,9 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                {errors.password && (
+                  <p className="text-sm text-red-500">{errors.password}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -119,6 +166,12 @@ export default function LoginPage() {
                   </div>
                 </RadioGroup>
               </div>
+
+              {errors.general && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-600">{errors.general}</p>
+                </div>
+              )}
 
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Signing in..." : "Sign In"}

@@ -22,53 +22,81 @@ export default function SignupPage() {
   const [agreeToTerms, setAgreeToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [errors, setErrors] = useState({})
   const { signup } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  const validatePassword = (password) => {
+    return password.length >= 6
+  }
+
+  const validateName = (name) => {
+    return name.trim().length >= 2
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+
+    if (!validateName(name)) {
+      newErrors.name = "Name must be at least 2 characters long"
+    }
+
+    if (!validateEmail(email)) {
+      newErrors.email = "Please enter a valid email address"
+    }
+
+    if (!validatePassword(password)) {
+      newErrors.password = "Password must be at least 6 characters long"
+    }
 
     if (password !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match.",
-        variant: "destructive",
-      })
-      return
+      newErrors.confirmPassword = "Passwords don't match"
     }
 
     if (!agreeToTerms) {
-      toast({
-        title: "Terms required",
-        description: "Please agree to the terms and conditions.",
-        variant: "destructive",
-      })
+      newErrors.terms = "Please agree to the terms and conditions"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    if (!validateForm()) {
       return
     }
 
     setLoading(true)
 
     try {
-      await signup(name, email, password, role)
+      const userData = await signup(name, email, password, role)
       toast({
         title: "Welcome to MindNest!",
         description: `Your ${role} account has been created successfully.`,
       })
-      
-      // If therapist, show onboarding modal immediately
+
+      // If therapist, show onboarding modal immediately and don't redirect
       if (role === "therapist") {
+        console.log("Therapist signup detected, showing onboarding modal");
         setShowOnboarding(true)
+        // Don't navigate yet - wait for onboarding completion
       } else {
         // If client, redirect to dashboard
         navigate("/dashboard")
       }
     } catch (error) {
       console.error("Signup error:", error)
-      toast({
-        title: "Signup failed",
-        description: error.message || "Please try again or contact support.",
-        variant: "destructive",
+      // Show error message under the form
+      setErrors({
+        general: error.message || "Signup failed. Please try again or contact support."
       })
     } finally {
       setLoading(false)
@@ -128,9 +156,18 @@ export default function SignupPage() {
                   type="text"
                   placeholder="Enter your full name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    if (errors.name) {
+                      setErrors(prev => ({ ...prev, name: "" }))
+                    }
+                  }}
+                  className={errors.name ? "border-red-500" : ""}
                   required
                 />
+                {errors.name && (
+                  <p className="text-sm text-red-500">{errors.name}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -140,9 +177,18 @@ export default function SignupPage() {
                   type="email"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (errors.email) {
+                      setErrors(prev => ({ ...prev, email: "" }))
+                    }
+                  }}
+                  className={errors.email ? "border-red-500" : ""}
                   required
                 />
+                {errors.email && (
+                  <p className="text-sm text-red-500">{errors.email}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -153,7 +199,13 @@ export default function SignupPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (errors.password) {
+                        setErrors(prev => ({ ...prev, password: "" }))
+                      }
+                    }}
+                    className={errors.password ? "border-red-500" : ""}
                     required
                   />
                   <Button
@@ -166,6 +218,9 @@ export default function SignupPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                {errors.password && (
+                  <p className="text-sm text-red-500">{errors.password}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -176,7 +231,13 @@ export default function SignupPage() {
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm your password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value)
+                      if (errors.confirmPassword) {
+                        setErrors(prev => ({ ...prev, confirmPassword: "" }))
+                      }
+                    }}
+                    className={errors.confirmPassword ? "border-red-500" : ""}
                     required
                   />
                   <Button
@@ -189,25 +250,44 @@ export default function SignupPage() {
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                {errors.confirmPassword && (
+                  <p className="text-sm text-red-500">{errors.confirmPassword}</p>
+                )}
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="terms"
-                  checked={agreeToTerms}
-                  onCheckedChange={(checked) => setAgreeToTerms(checked)}
-                />
-                <Label htmlFor="terms" className="text-sm">
-                  I agree to the{" "}
-                  <Link to="#" className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link to="#" className="text-primary hover:underline">
-                    Privacy Policy
-                  </Link>
-                </Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="terms"
+                    checked={agreeToTerms}
+                    onCheckedChange={(checked) => {
+                      setAgreeToTerms(checked)
+                      if (errors.terms) {
+                        setErrors(prev => ({ ...prev, terms: "" }))
+                      }
+                    }}
+                  />
+                  <Label htmlFor="terms" className="text-sm">
+                    I agree to the{" "}
+                    <Link to="#" className="text-primary hover:underline">
+                      Terms of Service
+                    </Link>{" "}
+                    and{" "}
+                    <Link to="#" className="text-primary hover:underline">
+                      Privacy Policy
+                    </Link>
+                  </Label>
+                </div>
+                {errors.terms && (
+                  <p className="text-sm text-red-500">{errors.terms}</p>
+                )}
               </div>
+
+              {errors.general && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-600">{errors.general}</p>
+                </div>
+              )}
 
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating account..." : `Create ${role === "client" ? "Client" : "Therapist"} Account`}

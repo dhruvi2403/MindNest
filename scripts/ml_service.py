@@ -421,4 +421,4 @@ if __name__ == '__main__':
         logger.error(f"Failed to train models on startup: {str(e)}")
     
     # Start the Flask app
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)
