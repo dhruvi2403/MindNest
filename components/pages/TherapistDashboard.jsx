@@ -27,11 +27,12 @@ export default function TherapistDashboard() {
 
   const fetchUpcomingAppointments = async () => {
     try {
-      const response = await fetch("/api/appointments/therapist/upcoming", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
+      const response = await fetch('/api/appointments/therapist/upcoming', { headers: { Authorization: `Bearer ${token}` } })
+      //fetch("/api/appointments/therapist/upcoming", {
+      //   headers: {
+      //     Authorization: `Bearer ${localStorage.getItem("token")}`,
+      //   },
+      // })
 
       if (response.ok) {
         const data = await response.json()
@@ -46,11 +47,11 @@ export default function TherapistDashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("/api/therapists/stats", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
+      const response = await fetch('/api/therapists/stats', { headers: { Authorization: `Bearer ${token}` } })//fetch("/api/therapists/stats", {
+      //   headers: {
+      //     Authorization: `Bearer ${localStorage.getItem("token")}`,
+      //   },
+      // })
 
       if (response.ok) {
         const data = await response.json()

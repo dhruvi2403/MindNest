@@ -25,11 +25,12 @@ export default function Dashboard() {
 
   const fetchScheduledAppointments = async () => {
     try {
-      const response = await fetch("/api/appointments/client/scheduled", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
+      const response = await fetch('/api/appointments/client/scheduled', { headers: { Authorization: `Bearer ${token}` } })
+      //fetch("/api/appointments/client/scheduled", {
+      //   headers: {
+      //     Authorization: `Bearer ${localStorage.getItem("token")}`,
+      //   },
+      // })
 
       if (response.ok) {
         const data = await response.json()
@@ -44,11 +45,11 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("/api/clients/stats", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
+      const response = await fetch('/api/clients/stats', { headers: { Authorization: `Bearer ${token}` } })//fetch("/api/clients/stats", {
+      //   headers: {
+      //     Authorization: `Bearer ${localStorage.getItem("token")}`,
+      //   },
+      // })
 
       if (response.ok) {
         const data = await response.json()
