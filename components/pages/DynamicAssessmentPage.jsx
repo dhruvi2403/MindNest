@@ -73,6 +73,7 @@ export default function DynamicAssessmentPage({ questions: propQuestions = [] })
   // ✅ Kept your fallback hardcoded questions
   const generateFallbackQuestions = () => {
     return [
+      // Demographics
       {
         id: "age",
         text: "What is your age?",
@@ -90,8 +91,156 @@ export default function DynamicAssessmentPage({ questions: propQuestions = [] })
         options: ["Male", "Female", "Non-binary", "Other", "Prefer not to say"],
         required: true,
       },
-      // ... (rest of your fallback questions)
-    ];
+      {
+        id: "occupation",
+        text: "What is your occupation?",
+        category: "demographics",
+        type: "select",
+        options: [
+          "Healthcare",
+          "Technology",
+          "Education",
+          "Finance",
+          "Business",
+          "Arts",
+          "Engineering",
+          "Student",
+          "Unemployed",
+          "Retired",
+          "Other",
+        ],
+        required: false,
+      },
+      // Mental Health Status
+      {
+        id: "has_mental_health_condition",
+        text: "Do you currently have any mental health conditions?",
+        category: "mental_health",
+        type: "radio",
+        options: ["Yes", "No"],
+        required: true,
+      },
+      {
+        id: "consultation_history",
+        text: "Have you ever consulted a mental health professional?",
+        category: "mental_health",
+        type: "radio",
+        options: ["Yes", "No"],
+        required: true,
+      },
+      // Clinical Scores
+      {
+        id: "symptom_severity_score",
+        text: "Rate your current symptom severity (1 = Very Mild, 10 = Very Severe)",
+        category: "clinical_scores",
+        type: "range",
+        min: 1,
+        max: 10,
+        required: true,
+      },
+      {
+        id: "mood_score",
+        text: "Rate your overall mood today (1 = Very Poor, 10 = Excellent)",
+        category: "clinical_scores",
+        type: "range",
+        min: 1,
+        max: 10,
+        required: true,
+      },
+      {
+        id: "stress_level_score",
+        text: "Rate your current stress level (1 = Very Low, 10 = Very High)",
+        category: "clinical_scores",
+        type: "range",
+        min: 1,
+        max: 10,
+        required: true,
+      },
+      {
+        id: "sleep_quality_score",
+        text: "Rate your sleep quality (1 = Very Poor, 10 = Excellent)",
+        category: "clinical_scores",
+        type: "range",
+        min: 1,
+        max: 10,
+        required: true,
+      },
+      // Lifestyle
+      {
+        id: "sleep_hours_per_night",
+        text: "How many hours do you sleep per night on average?",
+        category: "lifestyle",
+        type: "number",
+        min: 3,
+        max: 12,
+        step: 0.5,
+        required: true,
+      },
+      {
+        id: "work_hours_per_week",
+        text: "How many hours do you work per week?",
+        category: "lifestyle",
+        type: "number",
+        min: 0,
+        max: 80,
+        required: true,
+      },
+      {
+        id: "physical_activity_hours_per_week",
+        text: "How many hours of physical activity do you do per week?",
+        category: "lifestyle",
+        type: "number",
+        min: 0,
+        max: 20,
+        step: 0.5,
+        required: true,
+      },
+      {
+        id: "social_media_usage_hours_per_day",
+        text: "How many hours do you spend on social media per day?",
+        category: "lifestyle",
+        type: "number",
+        min: 0,
+        max: 12,
+        step: 0.5,
+        required: true,
+      },
+      // Health Behaviors
+      {
+        id: "diet_quality_score",
+        text: "How would you rate your overall diet quality?",
+        category: "health_behaviors",
+        type: "range",
+        min: 1,
+        max: 4,
+        labels: ["Poor", "Average", "Good", "Excellent"],
+        required: true,
+      },
+      {
+        id: "smoking_habit",
+        text: "What best describes your smoking habits?",
+        category: "health_behaviors",
+        type: "select",
+        options: ["Non-smoker", "Occasional Smoker", "Regular Smoker", "Heavy Smoker", "Former Smoker"],
+        required: true,
+      },
+      {
+        id: "alcohol_consumption",
+        text: "How would you describe your alcohol consumption?",
+        category: "health_behaviors",
+        type: "select",
+        options: ["Non-drinker", "Light Drinker", "Moderate", "Heavy Drinker"],
+        required: true,
+      },
+      {
+        id: "medication_usage",
+        text: "Are you currently taking any medications for mental health?",
+        category: "health_behaviors",
+        type: "radio",
+        options: ["Yes", "No"],
+        required: true,
+      },
+    ]
   };
 
   if (isLoading) {

@@ -1,5 +1,3 @@
-"use client"
-
 import React, { createContext, useContext, useState, useEffect } from "react"
 
 const AuthContext = createContext(undefined)
@@ -34,7 +32,7 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password, role) => {
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -60,7 +58,7 @@ export function AuthProvider({ children }) {
 
   const signup = async (name, email, password, role = "client") => {
     try {
-      const response = await fetch("/api/auth/signup", {
+      const response = await fetch("http://localhost:5000/api/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
